@@ -1,14 +1,18 @@
+import logging
 import sqlite3
 import pandas as pd
 import sqlite3
+
+logger = logging.getLogger(__name__)
 
 def create_connection(db_file):
     """Create a database connection to the SQLite database specified by db_file"""
     try:
         conn = sqlite3.connect(db_file)
+        logger.info("Database connection established.")
         return conn
     except sqlite3.Error as e:
-        print(e)
+        logger.error(e, exc_info=True)
     return None
 
 def create_table(conn):
@@ -56,10 +60,9 @@ def create_table(conn):
     try:
         c = conn.cursor()
         c.execute(sql_create_trades_table)
+        logger.info("Table created in database successfully.")
     except sqlite3.Error as e:
-        print(e)
-        
-    print(f"Table created in database successfully.")
+        logger.error(e, exc_info=True)
     
 def add_trade(conn, row):
     """
@@ -97,26 +100,15 @@ def add_trade(conn, row):
         formatted_row['underlyingConid'], str(formatted_row['isAPIOrder']), formatted_row['ibCommission'], formatted_row['ibCommissionCurrency']
     )
     
-    print(f"Inserting trade: {formatted_row['openCloseIndicator']} {formatted_row['tradeDate']} {formatted_row['buySell']} {abs(formatted_row['quantity'])} {formatted_row['symbol']} @ {formatted_row['tradePrice']} {formatted_row['currency']} {formatted_row['fifoPnlRealized']}")
+    logger.info(f"Inserting trade: {formatted_row['openCloseIndicator']} {formatted_row['tradeDate']} {formatted_row['buySell']} {abs(formatted_row['quantity'])} {formatted_row['symbol']} @ {formatted_row['tradePrice']} {formatted_row['currency']} {formatted_row['fifoPnlRealized']}")
     
     try:
         c = conn.cursor()
         c.execute(sql_insert_trade, trade_data)
         conn.commit()
-        print("Trade row inserted successfully.")
+        logger.info("Trade row inserted successfully.")
     except sqlite3.Error as e:
-        print(e)
-
-def create_database_and_table(conn, db_file, table_name):
-    
-    # Create tables
-    if conn is not None:
-        create_table(conn, sql_create_trades_table)
-    else:
-        print("Error! cannot create the database connection.")
-
-    
-    print(f"Table '{table_name}' created in database '{db_file}' successfully.")
+        logger.error(e, exc_info=True)
 
 def add_new_trades_to_database(df, conn):
     """
@@ -124,7 +116,6 @@ def add_new_trades_to_database(df, conn):
     :param df: DataFrame containing trades
     :param conn: SQLite database connection
     """
-    print(df.describe())
     for index, row in df.iterrows():
         ibOrderID = row['ibOrderID']
         tradeDate = row['tradeDate']
@@ -136,8 +127,28 @@ def add_new_trades_to_database(df, conn):
         result = cur.fetchone()
         
         if result[0] > 0:
-            print(f"Trade with ibOrderID '{ibOrderID}' and tradeDate '{tradeDate}' already exists in the database.")
+            logger.info(f"Trade with ibOrderID '{ibOrderID}' and tradeDate '{tradeDate}' already exists in the database.")
         else:
-            print(f"Trade with ibOrderID '{ibOrderID}' and tradeDate '{tradeDate}' does not exist in the database.")
+            logger.info(f"Trade with ibOrderID '{ibOrderID}' and tradeDate '{tradeDate}' does not exist in the database.")
             add_trade(conn, row)
-    
+
+def fetch_trades(conn):
+    logger.info("Fetching trades from database.")
+    try:
+        cursor = conn.cursor()
+
+        query = """
+        SELECT tradePairID, dateTime, buySell, quantity, symbol, tradePrice, openCloseIndicator, cost, netCash, fifoPnlRealized,
+            mtmPnl, ibCommission, assetCategory, description, listingExchange, multiplier, strike, expiry, putCall,
+            underlyingSymbol, tradeDate, exchange, ibOrderID, tradeID, orderType, isAPIOrder, currency
+        FROM trades
+        """
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        logger.info(f"Fetched {len(rows)} trades from the database.")
+    except sqlite3.Error as e:
+        logger.error(f"Error fetching trades from database: {e}")
+        rows = []
+        
+    return rows

@@ -1,23 +1,42 @@
+import logging
 from ibflex import client
 from ibflex import parser
 import subprocess
 import pandas as pd
 
-def download_trades(filename, query, query_id):
-    #flexget -t query -q query_id > trades_data_file
-    # Your shell command as a string
-    command = "flexget -t "+str(query)+" -q "+str(query_id)
+logger = logging.getLogger(__name__)
 
-    # Running the shell command and redirecting output to the file
-    with open(filename, "w") as file:
-        subprocess.run(command.split(), stdout=file)
+def download_trades(filename, query, query_id):
+    command = f"flexget -t {query} -q {query_id}"
+    logger.info(f"Downloading trades data with command: {command}")
+
+    try:
+        with open(filename, "w") as file:
+            subprocess.run(command.split(), stdout=file, check=True)
+        logger.info(f"Trades data successfully downloaded and saved to {filename}.")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"An error occurred while downloading trades data: {e}", exc_info=True)
     
 def extract_trades_from_file(filename):
-    response = parser.parse(filename)
-    stmt = response.FlexStatements[0]
-    return stmt.Trades
+    logger.info(f"Extracting trades from file: {filename}")
+    try:
+        response = parser.parse(filename)
+        stmt = response.FlexStatements[0]
+        trades = stmt.Trades
+        logger.info(f"Successfully extracted trades from {filename}.")
+        return trades
+    except Exception as e:
+        logger.error(f"Failed to extract trades from {filename}: {e}", exc_info=True)
+        return None
+
 
 def parse_trades_to_df(trades):
+    logger.info("Parsing trades to DataFrame.")
+
+    if trades is None:
+        logger.error("No trades data to parse.")
+        return pd.DataFrame()  # Return an empty DataFrame
+    
     # Define the columns based on the updated attributes for options trading
     columns = [
         'accountId', 'currency', 'dateTime', 'assetCategory', 'symbol', 'description',
@@ -40,6 +59,7 @@ def parse_trades_to_df(trades):
 
     # Create a DataFrame from the collected data
     df = pd.DataFrame(data, columns=columns)
+    logger.info("Successfully parsed trades to DataFrame.")
     
     df['openCloseIndicator'] = df['openCloseIndicator'].apply(lambda x: x.name if x is not None else "None")
     df['assetCategory'] = df['assetCategory'].apply(lambda x: x.name if x is not None else "None")
@@ -48,3 +68,13 @@ def parse_trades_to_df(trades):
     df['orderType'] = df['orderType'].apply(lambda x: x.name if x is not None else "None")
     return df
 
+def split_trades(rows):
+    logger.info("Splitting trades into open and close.")
+    open_trades, close_trades = [], []
+    for row in rows:
+        if row[6] == 'OPEN':  
+            open_trades.append(row)
+        else:
+            close_trades.append(row)
+    logger.info(f"Split into {len(open_trades)} open trades and {len(close_trades)} close trades.")
+    return open_trades, close_trades
