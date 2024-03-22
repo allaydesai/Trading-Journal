@@ -13,7 +13,7 @@ CREATE_TABLE = True
 QUERY = 957448361226423544216934
 QUERY_ID = 904255
 
-GOOGLE_SHEETS_API_CREDENTIALS = 'trading-396101-57412d0af674.json'
+GOOGLE_SHEETS_API_CREDENTIALS = '/home/allay/servershare/Trading-Journal/trading-396101-57412d0af674.json'
 TRADE_ID_COLUMN_INDEX = 24  # Replace with the index of the tradeID column in your sheet
 TRADING_JOURNAL_FILE_NAME = "Trading-Journal"
 
@@ -22,7 +22,7 @@ today = dt.date.today()
 trades_data_file = '/home/allay/servershare/trades-download/'+today.strftime('%Y-%m-%d')+'_ibkr.xml'
 
 # Configure logging
-logging.basicConfig(filename='./logs/trading-journal-'+today.strftime('%Y-%m-%d')+'.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(filename='/home/allay/servershare/Trading-Journal/logs/trading-journal-'+today.strftime('%Y-%m-%d')+'.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def main():
